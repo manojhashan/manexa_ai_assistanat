@@ -77,6 +77,7 @@ def main(argv=None) -> int:
             args.screenshot.parent.mkdir(parents=True, exist_ok=True)
             if not window.grab().save(str(args.screenshot)):
                 exit_code = 1
+        window.shutdown()
         window.close()
         application.quit()
 
@@ -225,6 +226,7 @@ def main(argv=None) -> int:
         window.show()
     application.exec()
     # Dispose the page before its profile; avoid WebEngine shutdown races.
+    window.shutdown()
     window.view.setPage(None)
     window.page.deleteLater()
     application.sendPostedEvents(None, 0)

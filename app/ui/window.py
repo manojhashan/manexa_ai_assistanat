@@ -69,6 +69,7 @@ class MainWindow(QMainWindow):
         self._dialogs = []
         self._ready = False
         self._closing = False
+        self._shutdown_complete = False
         self._last_error = None
         self._microphone_allowed = False
         self.voice = VoiceSession(self)
@@ -248,9 +249,24 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._closing = True
-        self.voice.stop()
-        self._startup_timer.stop()
+        self.shutdown()
         super().closeEvent(event)
+
+    def shutdown(self):
+        if getattr(self, "_shutdown_complete", False):
+            return
+        self._closing = True
+        self._startup_timer.stop()
+        self.gear._timer.stop()
+        self.voice.stop()
+        for dialog in list(getattr(self, "_dialogs", [])):
+            dialog.close()
+            dialog.deleteLater()
+        self._dialogs = []
+        self._dialog = None
+        for shortcut in getattr(self, "_shortcuts", []):
+            shortcut.setEnabled(False)
+        self._shutdown_complete = True
 
     @Slot()
     def listen(self):
