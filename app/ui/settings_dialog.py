@@ -427,17 +427,40 @@ class SettingsDialog(QDialog):
 
     @Slot()
     def _save(self):
+        settings = None
+        previous_key = ""
+        credential_changed = False
         try:
             settings = self._draft()
             key = self.key.text().strip()
             if key:
+                previous_key = self.vault.get(settings.provider, settings.base_url)
                 self.vault.set(settings.provider, settings.base_url, key)
+                credential_changed = True
             self.store.save(settings)
         except (ValueError, CredentialError, OSError) as exc:
-            self.status.setText(str(exc))
+            status = str(exc)
+            if credential_changed:
+                try:
+                    if previous_key:
+                        self.vault.set(settings.provider, settings.base_url, previous_key)
+                    else:
+                        self.vault.delete(settings.provider, settings.base_url)
+                except (CredentialError, OSError):
+                    status = f"{status} The credential change could not be rolled back."
+            self.status.setText(status)
             return
         except Exception:
-            self.status.setText("Preferences could not be saved. Check data-folder access.")
+            status = "Preferences could not be saved. Check data-folder access."
+            if credential_changed:
+                try:
+                    if previous_key:
+                        self.vault.set(settings.provider, settings.base_url, previous_key)
+                    else:
+                        self.vault.delete(settings.provider, settings.base_url)
+                except (CredentialError, OSError):
+                    status = f"{status} The credential change could not be rolled back."
+            self.status.setText(status)
             return
         self.key.clear()
         self.current = settings
