@@ -81,53 +81,143 @@ def main(argv=None) -> int:
         application.quit()
 
     if args.smoke_test:
-        window.renderer_failed.connect(lambda error: finish({"ok": False, "error": error}))
+        smoke_stage = {"stage": "assets", "detail": "Checking bundled renderer assets"}
+        smoke_frames = []
 
-        def inspected(payload):
-            try:
-                diagnostics = json.loads(payload)
-                ok = (
-                    diagnostics.get("ready") is True
-                    and diagnostics.get("frameCount", 0) > 1
-                    and diagnostics.get("nonBackgroundPixels", 0) > 10
-                    and diagnostics.get("visibleText") == "MANEXA"
-                    and diagnostics.get("branding", {}).get("centered") is True
-                    and (
-                        not args.fullscreen
-                        or (
-                            window.isFullScreen()
-                            and window.geometry() == window.screen().geometry()
-                        )
-                    )
-                )
-            except (TypeError, ValueError):
-                diagnostics, ok = {}, False
+        def smoke_failure(error, stage=None, detail=None):
+            if isinstance(stage, dict):
+                report_stage = stage
+            elif stage:
+                report_stage = {"stage": stage, "detail": detail or smoke_stage["detail"]}
+            else:
+                report_stage = smoke_stage
             finish(
                 {
-                    "ok": ok,
-                    "renderer": diagnostics,
-                    "off_the_record": window.profile.isOffTheRecord(),
-                    "visible_gear": window.gear.isVisible(),
-                    "window": [window.width(), window.height()],
-                    "fullscreen": window.isFullScreen(),
-                    "screen": [
-                        window.screen().geometry().width(),
-                        window.screen().geometry().height(),
-                    ],
+                    "ok": False,
+                    "error": error,
+                    "stage": report_stage["stage"],
+                    "stage_detail": detail or report_stage["detail"],
                 }
             )
 
-        def inspect(_):
+        window.view.loadFinished.connect(
+            lambda loaded: smoke_stage.update(
+                {
+                    "stage": "page_load",
+                    "detail": "Local scene navigation completed"
+                    if loaded
+                    else "The local scene navigation failed",
+                }
+                if loaded
+                else smoke_failure("The local scene could not be loaded.", "page_load")
+            )
+        )
+        def renderer_failed(error):
+            if "bundled renderer asset" in error:
+                smoke_failure(
+                    error,
+                    {"stage": "assets", "detail": "Bundled renderer asset validation failed"},
+                )
+            elif "could not be loaded" in error:
+                smoke_failure(
+                    error,
+                    {"stage": "page_load", "detail": "WebEngine could not load the local scene"},
+                )
+            elif "did not initialize" in error:
+                smoke_failure(
+                    error,
+                    {"stage": "webchannel", "detail": "Renderer and WebChannel did not initialize"},
+                )
+            else:
+                smoke_failure(error, {"stage": "graphics", "detail": error})
+
+        window.renderer_failed.connect(renderer_failed)
+
+        def inspected(payload):
+            nonlocal smoke_frames
+            if finished:
+                return
+            try:
+                diagnostics = json.loads(payload)
+            except (TypeError, ValueError):
+                diagnostics = {}
+            frame_count = diagnostics.get("frameCount", 0)
+            smoke_frames.append(frame_count)
+            smoke_frames = smoke_frames[-3:]
+            smoke_stage.update(
+                {"stage": "stable_frame", "detail": "Waiting for stable rendered frames"}
+            )
+            stable = (
+                diagnostics.get("ready") is True
+                and len(smoke_frames) >= 2
+                and smoke_frames[-1] > smoke_frames[0]
+                and frame_count > 1
+                and diagnostics.get("nonBackgroundPixels", 0) > 10
+                and diagnostics.get("visibleText") == "MANEXA"
+                and diagnostics.get("branding", {}).get("centered") is True
+                and (
+                    not args.fullscreen
+                    or (
+                        window.isFullScreen()
+                        and window.geometry() == window.screen().geometry()
+                    )
+                )
+            )
+            if stable:
+                smoke_stage.update(
+                    {"stage": "complete", "detail": "Stable renderer diagnostics verified"}
+                )
+                finish(
+                    {
+                        "ok": True,
+                        "renderer": diagnostics,
+                        "off_the_record": window.profile.isOffTheRecord(),
+                        "visible_gear": window.gear.isVisible(),
+                        "window": [window.width(), window.height()],
+                        "fullscreen": window.isFullScreen(),
+                        "screen": [
+                            window.screen().geometry().width(),
+                            window.screen().geometry().height(),
+                        ],
+                        "stage": smoke_stage["stage"],
+                        "stage_detail": smoke_stage["detail"],
+                    }
+                )
+            else:
+                poll_smoke()
+
+        poll_attempt = {"count": 0}
+
+        def poll_smoke():
+            if finished:
+                return
+            poll_attempt["count"] += 1
+            if poll_attempt["count"] > 50:
+                smoke_failure(
+                    "Renderer did not produce stable diagnostics.",
+                    {"stage": "stable_frame", "detail": "Diagnostic frame polling timed out"},
+                )
+                return
             QTimer.singleShot(
-                1500,
+                100,
                 lambda: window.page.runJavaScript(
                     "JSON.stringify(window.manexa.diagnostics())", inspected
                 ),
             )
 
+        def inspect(_):
+            smoke_stage.update(
+                {"stage": "webgl", "detail": "Waiting for WebGL and WebChannel readiness"}
+            )
+            poll_smoke()
+
         window.renderer_ready.connect(inspect)
         QTimer.singleShot(
-            20000, lambda: finish({"ok": False, "error": "Renderer startup timed out."})
+            20000,
+            lambda: smoke_failure(
+                "Renderer startup timed out.",
+                {"stage": smoke_stage["stage"], "detail": "Overall startup deadline exceeded"},
+            ),
         )
     if args.fullscreen or (not args.windowed and not args.smoke_test and settings.fullscreen):
         window.showFullScreen()
