@@ -14,6 +14,10 @@ if ($SoftwareRendering) {
 Push-Location -LiteralPath $projectRoot
 try {
     if (-not (Test-Path -LiteralPath $projectPython)) { throw 'Run setup.ps1 -Development first.' }
+    $artifactsDirectory = Join-Path $projectRoot 'artifacts'
+    if (-not (Test-Path -LiteralPath $artifactsDirectory)) {
+        New-Item -ItemType Directory -Path $artifactsDirectory | Out-Null
+    }
     & $projectPython -m scripts.verify_vendor
     if ($LASTEXITCODE -ne 0) { throw 'Vendor integrity check failed.' }
     & $projectRuff check app tests scripts
