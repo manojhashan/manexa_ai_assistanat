@@ -102,6 +102,11 @@ class SettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
         root.addWidget(buttons)
 
+    def closeEvent(self, event):
+        self._task = None
+        self._voice_task = None
+        super().closeEvent(event)
+
     @staticmethod
     def _scroll(widget):
         area = QScrollArea()
@@ -334,6 +339,8 @@ class SettingsDialog(QDialog):
 
     @Slot(object)
     def _voices_found(self, voices):
+        if self._voice_task is None:
+            return
         saved = self.voice_id.currentData()
         self.voice_id.clear()
         self.voice_id.addItem("Preserve Windows default voice", "")
@@ -357,6 +364,8 @@ class SettingsDialog(QDialog):
 
     @Slot(str)
     def _voices_failed(self, message):
+        if self._voice_task is None:
+            return
         self.voice_status.setText(message)
         self._voice_task = None
 
@@ -489,11 +498,15 @@ class SettingsDialog(QDialog):
 
     @Slot(object)
     def _probe_finished(self, result):
+        if self._task is None:
+            return
         self.status.setText(result.message)
         self._finish_task()
 
     @Slot(str)
     def _task_failed(self, message):
+        if self._task is None:
+            return
         self.status.setText(message)
         self._finish_task()
 
@@ -530,6 +543,8 @@ class SettingsDialog(QDialog):
 
     @Slot(object)
     def _hardware_finished(self, info):
+        if self._task is None:
+            return
         self.hardware_label.setText(
             f"{info['os']}\n{info['cpu']} · {info['logical_cpus']} logical CPUs\n"
             f"{info['ram_gb']} GB RAM\n{info['gpu']}\nPython {info['python']}"

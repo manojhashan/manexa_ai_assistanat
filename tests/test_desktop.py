@@ -195,3 +195,26 @@ def test_settings_save_deletes_new_credential_when_no_previous_key_exists(tmp_pa
     dialog.close()
     dialog.deleteLater()
     app.processEvents()
+
+
+def test_closed_settings_dialog_ignores_late_worker_results(tmp_path):
+    app = qt_app()
+    dialog = SettingsDialog(SettingsStore(tmp_path / "settings.db"), Settings())
+    dialog._task = object()
+    dialog._voice_task = object()
+
+    dialog.close()
+    app.processEvents()
+    assert dialog._task is None
+    assert dialog._voice_task is None
+
+    dialog._task_failed("late provider result")
+    dialog._voices_failed("late voice result")
+    assert dialog.status.text() == ""
+    assert dialog.voice_status.text() == (
+        "Speech uses installed Windows voices without pitch or sound-effect processing. "
+        "Sinhala speech requires an installed Sinhala voice; "
+        "romanized Singlish is ambiguous, so use the explicit language hint when needed."
+    )
+    dialog.deleteLater()
+    app.processEvents()
