@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve the exact bytes checked by scripts/verify_vendor.py, even on Windows clones.
+app/ui/web/vendor/three.module.js -text
+app/ui/web/vendor/THREE-LICENSE.txt -text
+app/ui/web/vendor/face-geometry.js -text
+app/ui/web/vendor/LeePerrySmith_License.txt -text
+app/ui/web/vendor/MEDIAPIPE-LICENSE.txt -text

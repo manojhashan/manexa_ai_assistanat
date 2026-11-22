@@ -1,0 +1,2 @@
+# Optional CPU-only recognition. TTS uses the regular Windows runtime dependencies.
+faster-whisper>=1.1,<2

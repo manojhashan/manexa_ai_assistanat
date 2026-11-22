@@ -1,0 +1,32 @@
+name: Windows checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+      - name: Install runtime and test tools
+        shell: pwsh
+        run: ./scripts/setup.ps1 -Development
+      - name: Validate desktop and renderer with software WebGL
+        shell: pwsh
+        run: ./scripts/verify.ps1 -SoftwareRendering
+      - name: Save verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-verification
+          path: |
+            artifacts/*.json
+            artifacts/*.png
