@@ -92,3 +92,31 @@ def test_invalid_endpoint_type_in_persisted_data_is_reported(tmp_path):
         connection.execute("INSERT INTO settings VALUES(1, 1, ?)", (json.dumps(payload),))
     with pytest.raises(ValueError, match="Back up"):
         store.load()
+
+
+def test_settings_diagnostics_report_current_schema(tmp_path):
+    store = SettingsStore(tmp_path / "settings.db")
+    result = store.diagnostics()
+    assert result["ok"] is True
+    assert result["schema_version"] == 1
+    assert result["migration_required"] is False
+
+
+def test_settings_diagnostics_report_unsupported_schema(tmp_path):
+    store = SettingsStore(tmp_path / "settings.db")
+    with sqlite3.connect(store.path) as connection:
+        connection.execute("INSERT INTO settings VALUES(1, 99, '{}')")
+    result = store.diagnostics()
+    assert result["ok"] is False
+    assert result["schema_version"] == 99
+    assert "Back up" in result["message"]
+
+
+def test_settings_diagnostics_report_corrupt_payload(tmp_path):
+    store = SettingsStore(tmp_path / "settings.db")
+    with sqlite3.connect(store.path) as connection:
+        connection.execute("INSERT INTO settings VALUES(1, 1, 'bad json')")
+    result = store.diagnostics()
+    assert result["ok"] is False
+    assert result["schema_version"] == 1
+    assert "corrupted" in result["message"]
