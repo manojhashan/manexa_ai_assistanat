@@ -113,6 +113,7 @@ def main(argv=None) -> int:
                 else smoke_failure("The local scene could not be loaded.", "page_load")
             )
         )
+
         def renderer_failed(error):
             if "bundled renderer asset" in error:
                 smoke_failure(
@@ -158,10 +159,7 @@ def main(argv=None) -> int:
                 and diagnostics.get("branding", {}).get("centered") is True
                 and (
                     not args.fullscreen
-                    or (
-                        window.isFullScreen()
-                        and window.geometry() == window.screen().geometry()
-                    )
+                    or (window.isFullScreen() and window.geometry() == window.screen().geometry())
                 )
             )
             if stable:
