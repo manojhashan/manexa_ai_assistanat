@@ -43,9 +43,8 @@ function start() {
   renderer.toneMappingExposure = 1.15;
   renderer.debug.onShaderError = () => fail('A WebGL shader failed to compile. Try software rendering.');
   const context = renderer.getContext();
-  canvas.addEventListener('webglcontextlost', event => {
-    event.preventDefault(); fail('The graphics context was lost. Restart MANEXA.');
-  });
+  canvas.addEventListener('webglcontextlost', handleContextLost);
+  canvas.addEventListener('webglcontextrestored', handleContextRestored);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
   camera.position.set(0, 0, 7.7);
@@ -224,10 +223,32 @@ function start() {
     renderer.dispose();
   }
   function handleContextLost(event) {
-    event.preventEvent;
+    event.preventDefault();
+    cancelAnimationFrame(raf);
+    fail('The graphics context was lost. Waiting for graphics recovery.');
   }
   function handleContextRestored() {
-    // Implemented with context restoration recovery in the Phase 2 context stage.
+    if (disposed) return;
+    target.dispose();
+    target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+    composite.uniforms.source.value = target.texture;
+    renderer.resetState();
+    resize();
+    failure = null;
+    readySent = false;
+    previous = performance.now();
+    lastFrame = 0;
+    window.manexa.configure({
+      quality: settings.quality,
+      motion: settings.motion,
+      glow: settings.glow,
+      particleDensity: settings.particleDensity,
+      animationSpeed: settings.animationSpeed,
+      advancedEffects: settings.advancedEffects,
+    });
+    if (state !== 'speaking') rig.resetSpeech();
+    window.manexa.setState(state);
+    raf = requestAnimationFrame(animate);
   }
 
   function animate(now) {

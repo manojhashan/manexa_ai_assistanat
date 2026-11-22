@@ -153,6 +153,7 @@ class MainWindow(QMainWindow):
     @Slot(dict)
     def _on_ready(self, info):
         self._startup_timer.stop()
+        self._last_error = None
         self._ready = True
         self._configure_scene()
         self.renderer_ready.emit(info)
