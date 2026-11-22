@@ -1,25 +1,44 @@
 # MANEXA AI
 
-**Your Intelligent Personal Assistant.**
+<div align="center">
 
-A Windows 11 desktop assistant under incremental development. The main screen contains a real
-animated blue 3D particle orb and a small settings gear on black. A rippling particle membrane
-surrounds a gently moving inner nucleus, with a spaced luminous **MANEXA** name at its center.
-There is no chat interface, conversation history or response text
-on the main screen.
+**Your intelligent Windows desktop assistant**
 
-**Current release: 0.2.4 — Phase 1 desktop verified.** The original desktop architecture is
-preserved. Real local SAPI speech drives orb expansion, waves and brightness from measured PCM.
-Optional local Faster-Whisper and Ollama provide explicitly activated spoken turns after setup.
-Camera tracking, always-on wake word, acoustic barge-in, PC commands and reminders remain pending.
-The latest particle-sphere reference replaces the earlier face concepts. The running app renders
-actual GPU particles, without a raster image, face, neck or shoulders. No reference audio was
-available for voice matching. See [the orb update](docs/PARTICLE_ORB.md) and
-[voice setup and limits](docs/HOLOGRAM_UPGRADE.md).
+[![Windows](https://img.shields.io/badge/platform-Windows%2011-0078D4?logo=windows&logoColor=white)](#windows-installation)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](#windows-installation)
+[![Release](https://img.shields.io/badge/release-0.2.4-2F80ED)](#project-status)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-The current [Phase 1 plan](docs/PHASE_1_PLAN.md) preserves this existing design and verifies
-fullscreen launch, animations, the native gear, settings Save/Cancel and packaged assets.
-No robotic head, humanoid avatar or interface redesign is included. Phase 2 is on hold.
+<img src="docs/images/manexa-phase1.png" alt="MANEXA Phase 1 desktop interface" width="880">
+
+</div>
+
+MANEXA is a privacy-first Windows desktop assistant built around a real animated blue 3D particle
+orb, native Windows settings and explicit, opt-in voice interactions. The Phase 1 interface stays
+minimal: the black fullscreen scene contains the orb, the luminous **MANEXA** name and a small
+settings gear.
+
+<details open>
+<summary><strong>Project status</strong></summary>
+
+- **Release:** 0.2.4 — Phase 1 desktop verified
+- **Visuals:** real WebGL particle orb; no face, neck or shoulders
+- **Voice:** local Windows SAPI playback and explicit Faster-Whisper/Ollama spoken turns
+- **Privacy:** no startup microphone/camera access and no startup network calls
+- **Not included yet:** wake word, camera tracking, acoustic barge-in, PC commands and reminders
+
+</details>
+
+> Phase 1 preserves the original desktop architecture and verifies fullscreen launch, animation,
+> native settings, Save/Cancel behavior and packaged assets. Read the [Phase 1 plan](docs/PHASE_1_PLAN.md),
+> [orb update](docs/PARTICLE_ORB.md) and [voice limits](docs/HOLOGRAM_UPGRADE.md).
+
+<div align="center">
+
+[Installation](#windows-installation) · [Controls](#controls-and-settings) ·
+[Privacy](#privacy-and-data) · [Verification](#verification) · [Troubleshooting](#troubleshooting)
+
+</div>
 
 ## What works now
 
@@ -47,15 +66,12 @@ Use **64-bit Python 3.12**. The tested environment uses CPython 3.12.12 and PySi
 3.13 is allowed by package metadata but has not been used to validate this release. No CUDA,
 Node.js, Ollama, microphone, webcam or paid API is needed for the current desktop application.
 
-Clone your repository after publishing this source to GitHub, or open the existing project folder:
+Clone the repository and open it in PowerShell:
 
 ```powershell
-git clone <YOUR_REPOSITORY_URL>
-cd <YOUR_REPOSITORY_FOLDER>
+git clone https://github.com/manojhashan/manexa_ai_assistanat.git
+cd manexa_ai_assistanat
 ```
-
-No remote was configured in the initial repository. The placeholder above is intentionally not a
-claim that a public repository has been created or pushed.
 
 The setup script uses [uv](https://docs.astral.sh/uv/) if installed (including a managed Python 3.12
 download). Otherwise install Python 3.12 from [python.org](https://www.python.org/downloads/windows/)
@@ -216,7 +232,7 @@ Manual commands are also supported:
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\ruff.exe check app tests scripts
 .\.venv\Scripts\python.exe -m pytest -q --basetemp artifacts\pytest-local
-.\.venv\Scripts\python.exe -m app.main --smoke-test --smoke-report artifacts\smoke.json --screenshot artifacts\head.png
+.\.venv\Scripts\python.exe -m app.main --smoke-test --smoke-report artifacts\smoke.json --screenshot artifacts\phase1-launch.png
 .\.venv\Scripts\python.exe -m scripts.check_renderer
 ```
 
