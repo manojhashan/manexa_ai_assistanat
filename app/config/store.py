@@ -50,7 +50,7 @@ class SettingsStore:
                 "message": "Unsupported settings schema. Back up the data folder before upgrading.",
             }
         try:
-            settings = Settings(**json.loads(payload)).validate()
+            Settings(**json.loads(payload)).validate()
         except (TypeError, ValueError, json.JSONDecodeError):
             return {
                 "ok": False,
