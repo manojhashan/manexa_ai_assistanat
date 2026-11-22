@@ -7,8 +7,14 @@ function fail(reason) {
   failure = reason;
   if (bridge) bridge.rendererFailed(reason);
 }
-window.addEventListener('error', () => fail('The 3D renderer encountered an error. Check local assets.'));
-window.addEventListener('unhandledrejection', () => fail('The 3D renderer could not initialize.'));
+function reportGlobalError() {
+  fail('The 3D renderer encountered an error. Check local assets.');
+}
+function reportUnhandledRejection() {
+  fail('The 3D renderer could not initialize.');
+}
+window.addEventListener('error', reportGlobalError);
+window.addEventListener('unhandledrejection', reportUnhandledRejection);
 
 new QWebChannel(qt.webChannelTransport, channel => {
   bridge = channel.objects.bridge;
@@ -50,7 +56,7 @@ function start() {
   scene.add(hologram.root);
 
   // Lightweight nine-tap cyan bloom, without external postprocessing assets or textures.
-  const target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+  let target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
   const composite = new THREE.ShaderMaterial({
     depthTest: false, depthWrite: false, toneMapped: false,
     uniforms: { source: { value: target.texture }, pixel: { value: new THREE.Vector2(1, 1) },
@@ -195,6 +201,35 @@ function start() {
     reconstruct() { hologram.trigger(visualTime); },
   };
 
+  let disposed = false;
+  function disposeRenderer() {
+    if (disposed) return;
+    disposed = true;
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', resize);
+    window.removeEventListener('error', reportGlobalError);
+    window.removeEventListener('unhandledrejection', reportUnhandledRejection);
+    canvas.removeEventListener('webglcontextlost', handleContextLost);
+    canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    target.dispose();
+    composite.dispose();
+    post.traverse(object => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material && !Array.isArray(object.material)) object.material.dispose();
+    });
+    scene.traverse(object => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material && !Array.isArray(object.material)) object.material.dispose();
+    });
+    renderer.dispose();
+  }
+  function handleContextLost(event) {
+    event.preventEvent;
+  }
+  function handleContextRestored() {
+    // Implemented with context restoration recovery in the Phase 2 context stage.
+  }
+
   function animate(now) {
     raf = requestAnimationFrame(animate);
     if (document.hidden || failure || now - lastFrame < 1000 / quality[settings.quality][0]) {
@@ -230,11 +265,6 @@ function start() {
   }
   raf = requestAnimationFrame(animate);
   window.addEventListener('pagehide', () => {
-    cancelAnimationFrame(raf);
-    target.dispose(); renderer.dispose();
-    scene.traverse(object => {
-      if (object.geometry) object.geometry.dispose();
-      if (object.material && !Array.isArray(object.material)) object.material.dispose();
-    });
+    disposeRenderer();
   }, { once: true });
 }
