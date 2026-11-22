@@ -287,3 +287,11 @@ Source license: [MIT](LICENSE). Bundled and installed dependencies retain their 
 [third-party notices](THIRD_PARTY_NOTICES.md). No credentials, model weights or personal data are
 included, and no GitHub remote is created automatically.
 
+---
+
+<div align="center">
+
+**Developed by MANOJ WICKRAMANAYAKE**
+
+</div>
+
