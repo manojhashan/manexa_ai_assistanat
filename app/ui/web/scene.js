@@ -7,8 +7,14 @@ function fail(reason) {
   failure = reason;
   if (bridge) bridge.rendererFailed(reason);
 }
-window.addEventListener('error', () => fail('The 3D renderer encountered an error. Check local assets.'));
-window.addEventListener('unhandledrejection', () => fail('The 3D renderer could not initialize.'));
+function reportGlobalError() {
+  fail('The 3D renderer encountered an error. Check local assets.');
+}
+function reportUnhandledRejection() {
+  fail('The 3D renderer could not initialize.');
+}
+window.addEventListener('error', reportGlobalError);
+window.addEventListener('unhandledrejection', reportUnhandledRejection);
 
 new QWebChannel(qt.webChannelTransport, channel => {
   bridge = channel.objects.bridge;
@@ -37,9 +43,8 @@ function start() {
   renderer.toneMappingExposure = 1.15;
   renderer.debug.onShaderError = () => fail('A WebGL shader failed to compile. Try software rendering.');
   const context = renderer.getContext();
-  canvas.addEventListener('webglcontextlost', event => {
-    event.preventDefault(); fail('The graphics context was lost. Restart MANEXA.');
-  });
+  canvas.addEventListener('webglcontextlost', handleContextLost);
+  canvas.addEventListener('webglcontextrestored', handleContextRestored);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
   camera.position.set(0, 0, 7.7);
@@ -50,7 +55,7 @@ function start() {
   scene.add(hologram.root);
 
   // Lightweight nine-tap cyan bloom, without external postprocessing assets or textures.
-  const target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+  let target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
   const composite = new THREE.ShaderMaterial({
     depthTest: false, depthWrite: false, toneMapped: false,
     uniforms: { source: { value: target.texture }, pixel: { value: new THREE.Vector2(1, 1) },
@@ -195,6 +200,57 @@ function start() {
     reconstruct() { hologram.trigger(visualTime); },
   };
 
+  let disposed = false;
+  function disposeRenderer() {
+    if (disposed) return;
+    disposed = true;
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', resize);
+    window.removeEventListener('error', reportGlobalError);
+    window.removeEventListener('unhandledrejection', reportUnhandledRejection);
+    canvas.removeEventListener('webglcontextlost', handleContextLost);
+    canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    target.dispose();
+    composite.dispose();
+    post.traverse(object => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material && !Array.isArray(object.material)) object.material.dispose();
+    });
+    scene.traverse(object => {
+      if (object.geometry) object.geometry.dispose();
+      if (object.material && !Array.isArray(object.material)) object.material.dispose();
+    });
+    renderer.dispose();
+  }
+  function handleContextLost(event) {
+    event.preventDefault();
+    cancelAnimationFrame(raf);
+    fail('The graphics context was lost. Waiting for graphics recovery.');
+  }
+  function handleContextRestored() {
+    if (disposed) return;
+    target.dispose();
+    target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: true });
+    composite.uniforms.source.value = target.texture;
+    renderer.resetState();
+    resize();
+    failure = null;
+    readySent = false;
+    previous = performance.now();
+    lastFrame = 0;
+    window.manexa.configure({
+      quality: settings.quality,
+      motion: settings.motion,
+      glow: settings.glow,
+      particleDensity: settings.particleDensity,
+      animationSpeed: settings.animationSpeed,
+      advancedEffects: settings.advancedEffects,
+    });
+    if (state !== 'speaking') rig.resetSpeech();
+    window.manexa.setState(state);
+    raf = requestAnimationFrame(animate);
+  }
+
   function animate(now) {
     raf = requestAnimationFrame(animate);
     if (document.hidden || failure || now - lastFrame < 1000 / quality[settings.quality][0]) {
@@ -230,11 +286,6 @@ function start() {
   }
   raf = requestAnimationFrame(animate);
   window.addEventListener('pagehide', () => {
-    cancelAnimationFrame(raf);
-    target.dispose(); renderer.dispose();
-    scene.traverse(object => {
-      if (object.geometry) object.geometry.dispose();
-      if (object.material && !Array.isArray(object.material)) object.material.dispose();
-    });
+    disposeRenderer();
   }, { once: true });
 }

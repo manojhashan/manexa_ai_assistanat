@@ -3,6 +3,49 @@
 The current visual is the [blue particle orb](PARTICLE_ORB.md). Earlier face/bust and Phase 1/2
 entries below are historical checks.
 
+## Phase 2 visual integration — implementation completed
+
+Baseline:
+
+- Branch: `phase2/visual-integration`
+- Verified Phase 1 baseline: tag `phase1-0.2.4-verified`, commit `679840d`
+- Audit: [PHASE_2_AUDIT.md](PHASE_2_AUDIT.md)
+- Implementation phase did not modify the orb geometry, branding, settings UI or asset manifest.
+
+Implemented and verified:
+
+- Smoke launches now poll for stable diagnostic frames instead of using a fixed post-ready delay.
+- Smoke JSON reports typed stages for assets, page load, WebChannel/graphics and stable diagnostics.
+- Three.js cleanup owns the bloom target, scene/post-process resources, resize listeners and
+  global/window listeners through an idempotent disposal path.
+- WebGL context-loss pauses frame work and reports a recoverable graphics state.
+- WebGL context restoration recreates the bloom target, reapplies settings and state, and resumes
+  the existing orb and brand with no visual redesign.
+- Window teardown centrally stops the startup timer, gear timer, voice, dialogs, shortcuts and
+  pending application work before WebEngine page detachment.
+- Settings Save validates and persists preferences with credential rollback compensation. If
+  SQLite persistence fails after a credential write, the previous credential is restored or the
+  newly created credential is deleted.
+- Closed settings dialogs invalidate provider, hardware and voice-worker callbacks; stale results
+  no longer update UI state.
+- SettingsStore diagnostics now report current, uninitialized, corrupt or unsupported schemas
+  without exposing secret values or silently overwriting data.
+
+Acceptance results:
+
+- **62 tests passed**, preserving all 56 existing Phase 1 tests and adding six focused regression
+  tests for migration, credential rollback and stale worker behavior.
+- Ruff vendor/lint/format checks passed.
+- Hardware NVIDIA RTX 3050 smoke and fullscreen renderer checks passed.
+- WARP Microsoft Basic Render Driver smoke and fullscreen renderer checks passed.
+- Hardware and WARP runs both produced real particles, one draw call, visible centered `MANEXA`
+  branding and the native settings gear.
+- **39/39 renderer/settings integration checks passed** in both hardware and WARP verification.
+- Three repeated WARP fullscreen startup/shutdown smoke cycles passed.
+- Fresh wheel build passed and contains seven active orb assets with no legacy avatar assets.
+- No robotic head, humanoid face, chatbot, dashboard, wake word, camera or recognition behavior
+  was introduced.
+
 ## Phase 1 gate — 0.2.4, existing design preserved
 
 - Inspected the local repository, all application subsystems, settings, renderer, tests, scripts

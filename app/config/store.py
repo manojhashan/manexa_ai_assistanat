@@ -31,6 +31,40 @@ class SettingsStore:
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path, timeout=5)
 
+    def diagnostics(self) -> dict:
+        with closing(self._connect()) as connection:
+            row = connection.execute("SELECT version, value FROM settings WHERE id=1").fetchone()
+        if row is None:
+            return {
+                "ok": True,
+                "schema_version": 1,
+                "migration_required": False,
+                "message": "Settings database is not initialized; defaults are available.",
+            }
+        version, payload = row
+        if version != 1:
+            return {
+                "ok": False,
+                "schema_version": version,
+                "migration_required": False,
+                "message": "Unsupported settings schema. Back up the data folder before upgrading.",
+            }
+        try:
+            Settings(**json.loads(payload)).validate()
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {
+                "ok": False,
+                "schema_version": version,
+                "migration_required": False,
+                "message": "Settings payload is invalid or corrupted.",
+            }
+        return {
+            "ok": True,
+            "schema_version": version,
+            "migration_required": False,
+            "message": "Settings schema is current.",
+        }
+
     def load(self) -> Settings:
         with closing(self._connect()) as connection:
             row = connection.execute("SELECT version, value FROM settings WHERE id=1").fetchone()
